@@ -7,9 +7,10 @@ import Utils.Utils exposing (styles, testsIframe)
 
 homePage : Html msg
 homePage =
-    div []
-        [ h1 [] [ text "A random title" ]
-        , a [ class "btn", href "#nowhere" ] [ text "A random link" ]
+    div [ class "gameOptions" ]
+        [ h1 [] [ text "Quiz Game" ]
+        , a [ class "btn btn-primary", href "#game" ] [ text "Play random questions" ]
+        , a [ class "btn btn-primary", href "#categories" ] [ text "Play from a category" ]
         ]
 
 
