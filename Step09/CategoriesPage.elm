@@ -4,7 +4,7 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (expectJson)
-import Json.Decode as Decode
+import Json.Decode as Decode exposing (field, int, map2, string)
 import Result exposing (Result)
 import Utils.Utils exposing (styles, testsIframe)
 
@@ -55,7 +55,14 @@ getCategoriesDecoder =
 
 categoriesListDecoder : Decode.Decoder (List Category)
 categoriesListDecoder =
-    Decode.succeed []
+    Decode.list categoryDecoder
+
+
+categoryDecoder : Decode.Decoder Category
+categoryDecoder =
+    map2 Category
+        (field "id" int)
+        (field "name" string)
 
 
 update : Msg -> Model -> ( Model, Cmd.Cmd Msg )
@@ -65,7 +72,7 @@ update msg model =
             ( Model OnError, Cmd.none )
 
         OnCategoriesFetched (Ok categories) ->
-            ( model, Cmd.none )
+            ( Model (Loaded categories), Cmd.none )
 
 
 view : Model -> Html Msg
