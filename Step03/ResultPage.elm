@@ -9,6 +9,15 @@ resultPage : Int -> Html msg
 resultPage score =
     div [ class "score" ]
         [ h1 [] [ text ("Your score: " ++ String.fromInt score ++ " / 5") ]
+        , p []
+            [ text
+                (if score > 3 then
+                    "Congrats, this is really good!"
+
+                 else
+                    "Keep going, I'm sure you can do better!"
+                )
+            ]
         , a [ class "btn btn-primary", href "#" ] [ text "Replay" ]
         ]
 
