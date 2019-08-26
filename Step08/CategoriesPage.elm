@@ -41,21 +41,45 @@ type RemoteData a
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model Loading, Cmd.none )
+    ( Model Loading
+    , Http.get
+        { url = "https://opentdb.com/api_category.php"
+        , expect =
+            expectString
+                OnCategoriesFetched
+        }
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        OnCategoriesFetched _ ->
-            ( model, Cmd.none )
+        OnCategoriesFetched result ->
+            ( case result of
+                Ok cat ->
+                    Model (Loaded cat)
+
+                Err error ->
+                    Model OnError
+            , Cmd.none
+            )
 
 
 view : Model -> Html Msg
 view model =
     div []
         [ h1 [] [ text "Play within a given category" ]
-        , text "Loading the categories..."
+        , text
+            (case model.categories of
+                Loading ->
+                    "Loading the categories..."
+
+                Loaded cat ->
+                    cat
+
+                OnError ->
+                    "An error occurred while loading the categories"
+            )
         ]
 
 
