@@ -21,7 +21,17 @@ questionToDisplay =
 
 gamePage : Question -> Html msg
 gamePage question =
-    div [] [ text "Content of the page" ]
+    div []
+        [ h2 [ class "question" ] [ text question.question ]
+        , ul [ class "answers" ]
+            (List.map
+                (\answer ->
+                    li []
+                        [ a [ class "btn btn-primary" ] [ text answer ] ]
+                )
+                question.answers
+            )
+        ]
 
 
 
