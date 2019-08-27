@@ -4,6 +4,7 @@ import Browser
 import Html exposing (Html, a, div, h2, li, text, ul)
 import Html.Attributes exposing (class)
 import Http exposing (Error, expectJson)
+import Json.Decode as Decode exposing (field, map3, list)
 import Utils.Utils exposing (styles, testsIframe)
 
 
@@ -58,7 +59,7 @@ type RemoteData a
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model Loading, Cmd.none )
+    ( Model Loading, getQuestionsRequest )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -67,6 +68,41 @@ update message model =
         OnQuestionsFetched _ ->
             ( model, Cmd.none )
 
+
+getQuestionsRequest : Cmd Msg
+getQuestionsRequest =
+    Http.get { url = getQuestionsUrl, expect = expectJson OnQuestionsFetched getQuestionsDecoder }
+
+
+getQuestionsUrl : String
+getQuestionsUrl =
+    "https://opentdb.com/api.php?amount=5&type=multiple"
+
+
+getQuestionsDecoder : Decode.Decoder (List Question)
+getQuestionsDecoder =
+    Decode.field "results" getQuestionsListDecoder
+
+
+getQuestionsListDecoder : Decode.Decoder (List Question)
+getQuestionsListDecoder =
+    Decode.List getQuestionsDecoder
+
+
+getQuestionsDecoder : Decode.Decoder Question
+getQuestionsDecoder =
+    map3 Question
+        (field "question" String)
+        (field "correct_answer" String)
+        (field  )
+--        List.append [(field "correct_answer" String)] (field "incorrect_answers" (Decode.list String))
+
+test : Decode.Decoder (List String) -> Decode.Decoder String -> Decode.Decoder(List String)
+test list string =
+     let decodedList case list of
+         Ok value -> value
+         Err value -> value
+     in
 
 view : Model -> Html.Html Msg
 view model =
