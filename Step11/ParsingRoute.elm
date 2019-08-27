@@ -64,7 +64,10 @@ resultUrl score =
 routeParser : Parser.Parser (Route -> Route) Route
 routeParser =
     Parser.oneOf
-        [ Parser.map HomeRoute Parser.top ]
+        [ Parser.map HomeRoute Parser.top
+        , Parser.map CategoriesRoute (Parser.s "categories")
+        , Parser.map ResultRoute (Parser.s "result" </> Parser.int)
+        ]
 
 
 parseUrlToPageAndCommand : Url -> ( Page, Cmd Msg )
@@ -74,7 +77,15 @@ parseUrlToPageAndCommand url =
         routeMaybe =
             Parser.parse routeParser url
     in
-    ( HomePage, Cmd.none )
+    case Maybe.withDefault HomeRoute routeMaybe of
+        HomeRoute ->
+            ( HomePage, Cmd.none )
+
+        CategoriesRoute ->
+            ( CategoriesPage Loading, getCategoriesRequest )
+
+        ResultRoute result ->
+            ( ResultPage result, Cmd.none )
 
 
 view : Html Msg
