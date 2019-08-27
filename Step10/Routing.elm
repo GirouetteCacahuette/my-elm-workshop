@@ -52,23 +52,68 @@ type RemoteData a
 
 init : () -> Url -> Key -> ( Model, Cmd Msg )
 init _ url key =
-    ( Model key HomePage, getCategoriesRequest )
+    ( Model key
+        (case url.fragment of
+            Just "categories" ->
+                CategoriesPage Loading
+
+            Just _ ->
+                HomePage
+
+            Nothing ->
+                HomePage
+        )
+    , case url.fragment of
+        Just "categories" ->
+            getCategoriesRequest
+
+        Just _ ->
+            Cmd.none
+
+        Nothing ->
+            Cmd.none
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         OnCategoriesFetched (Ok categories) ->
-            ( model, Cmd.none )
+            ( Model model.key (CategoriesPage (Loaded categories)), Cmd.none )
 
         OnCategoriesFetched (Err err) ->
-            ( model, Cmd.none )
+            ( Model model.key (CategoriesPage OnError), Cmd.none )
 
         OnUrlRequest urlRequest ->
-            ( model, Cmd.none )
+            case urlRequest of
+                Internal url ->
+                    ( model, Navigation.pushUrl model.key (Url.toString url) )
+
+                External url ->
+                    ( model, Navigation.load url )
 
         OnUrlChange url ->
-            ( model, Cmd.none )
+            ( Model model.key
+                (case url.fragment of
+                    Just "categories" ->
+                        CategoriesPage Loading
+
+                    Just _ ->
+                        HomePage
+
+                    Nothing ->
+                        HomePage
+                )
+            , case url.fragment of
+                Just "categories" ->
+                    getCategoriesRequest
+
+                Just _ ->
+                    Cmd.none
+
+                Nothing ->
+                    Cmd.none
+            )
 
 
 getCategoriesUrl : String
@@ -94,7 +139,13 @@ getCategoriesRequest =
 view : Model -> Html Msg
 view model =
     div []
-        [ displayHomePage ]
+        [ case model.page of
+            HomePage ->
+                displayHomePage
+
+            CategoriesPage categories ->
+                displayCategoriesPage categories
+        ]
 
 
 displayHomePage : Html Msg
