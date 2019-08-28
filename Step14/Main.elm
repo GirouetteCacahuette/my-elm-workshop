@@ -2,11 +2,12 @@ module Step14.Main exposing (Category, Model, Msg(..), Page(..), RemoteData(..),
 
 import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Navigation exposing (Key)
-import Html exposing (Html, a, div, h1, li, p, text, ul)
+import Html exposing (Html, a, div, h1, h2, li, p, text, ul)
 import Html.Attributes exposing (class, href)
 import Http exposing (expectJson)
 import Json.Decode as Decode
 import Result exposing (Result)
+import Step14.GamePage exposing (Game, Question)
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>))
 import Utils.Utils exposing (styles, testsIframe)
@@ -28,18 +29,21 @@ type Msg
     = OnCategoriesFetched (Result Http.Error (List Category))
     | OnUrlRequest UrlRequest
     | OnUrlChange Url
+    | OnQuestionsFetched (Result Http.Error (List Question))
 
 
 type Page
     = HomePage
     | CategoriesPage (RemoteData (List Category))
     | ResultPage Int
+    | GamePage (RemoteData Game)
 
 
 type Route
     = HomeRoute
     | CategoriesRoute
     | ResultRoute Int
+    | GameRoute
 
 
 type alias Model =
@@ -64,6 +68,7 @@ routeParser =
         [ Parser.map HomeRoute Parser.top
         , Parser.map CategoriesRoute (Parser.s "categories")
         , Parser.map ResultRoute (Parser.s "result" </> Parser.int)
+        , Parser.map GameRoute (Parser.s "game")
         ]
 
 
@@ -83,6 +88,9 @@ parseUrlToPageAndCommand url =
 
         Just HomeRoute ->
             ( HomePage, Cmd.none )
+
+        Just GameRoute ->
+            ( GamePage Loading, getQuestionsRequest )
 
         Nothing ->
             ( HomePage, Cmd.none )
@@ -131,6 +139,22 @@ update msg model =
             in
             ( { model | page = page }, cmd )
 
+        OnQuestionsFetched (Ok (firstQuestion :: remainingQuestion)) ->
+            case model.page of
+                GamePage _ ->
+                    ( { model | page = GamePage (Loaded (Game firstQuestion remainingQuestion)) }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        OnQuestionsFetched _ ->
+            case model.page of
+                CategoriesPage _ ->
+                    ( { model | page = CategoriesPage OnError }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
 
 getCategoriesUrl : String
 getCategoriesUrl =
@@ -152,6 +176,46 @@ getCategoriesRequest =
         }
 
 
+getQuestionsRequest : Cmd Msg
+getQuestionsRequest =
+    Http.get
+        { url = questionsUrl
+        , expect = expectJson OnQuestionsFetched questionsDecoder
+        }
+
+
+questionsDecoder : Decode.Decoder (List Question)
+questionsDecoder =
+    Decode.field "results" (Decode.list questionDecoder)
+
+
+questionsUrl : String
+questionsUrl =
+    "https://opentdb.com/api.php?amount=5&type=multiple"
+
+
+questionDecoder : Decode.Decoder Question
+questionDecoder =
+    Decode.map3
+        Question
+        (Decode.field "question" Decode.string)
+        correctAnswerDecoder
+        answersDecoder
+
+
+correctAnswerDecoder : Decode.Decoder String
+correctAnswerDecoder =
+    Decode.field "correct_answer" Decode.string
+
+
+answersDecoder : Decode.Decoder (List String)
+answersDecoder =
+    Decode.map2
+        (::)
+        correctAnswerDecoder
+        (Decode.field "incorrect_answers" (Decode.list Decode.string))
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -164,6 +228,9 @@ view model =
 
             ResultPage score ->
                 displayResultPage score
+
+            GamePage questionsModel ->
+                displayGamePage questionsModel
         ]
 
 
@@ -200,6 +267,28 @@ displayCategoriesPage categories =
         [ h1 [] [ text "Play within a given category" ]
         , displayCategoriesList categories
         ]
+
+
+displayGamePage : RemoteData Game -> Html Msg
+displayGamePage gameRemote =
+    case gameRemote of
+        Loaded game ->
+            div [ class "question" ]
+                [ h2 [ class "question" ] [ text game.currentQuestion.question ]
+                , ul [ class "answers" ]
+                    (List.map
+                        (\answer ->
+                            li [] [ a [ class "btn btn-primary" ] [ text answer ] ]
+                        )
+                        game.currentQuestion.answers
+                    )
+                ]
+
+        OnError ->
+            div [] [ text "An unknown error occurred while loading the questions" ]
+
+        Loading ->
+            div [] [ text "Loading the questions..." ]
 
 
 displayCategoriesList : RemoteData (List Category) -> Html Msg
