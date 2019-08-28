@@ -128,7 +128,16 @@ view model =
                 text "Loading the questions..."
 
             Loaded game ->
-                div [ class "question" ] [ text game.currentQuestion.question ]
+                div [ class "question" ]
+                    [ h2 [ class "question" ] [ text game.currentQuestion.question ]
+                    , ul [ class "answers" ]
+                        (List.map
+                            (\answer ->
+                                li [] [ a [ class "btn btn-primary" ] [ text answer ] ]
+                            )
+                            game.currentQuestion.answers
+                        )
+                    ]
 
             OnError ->
                 text "An unknown error occurred while loading the questions."
