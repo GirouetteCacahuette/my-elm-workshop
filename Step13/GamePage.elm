@@ -4,6 +4,7 @@ import Browser
 import Html exposing (Html, a, div, h2, li, text, ul)
 import Html.Attributes exposing (class)
 import Http exposing (Error, expectJson)
+import Json.Decode as Decode exposing (field, list, map2, map3, string)
 import Utils.Utils exposing (styles, testsIframe)
 
 
@@ -58,19 +59,80 @@ type RemoteData a
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model Loading, Cmd.none )
+    ( Model Loading, getQuestionsRequest )
+
+
+extractFirst : List Question -> Question
+extractFirst questionsList =
+    case List.head questionsList of
+        Just question ->
+            question
+
+        Nothing ->
+            Question "" "" []
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update message model =
     case message of
-        OnQuestionsFetched _ ->
-            ( model, Cmd.none )
+        OnQuestionsFetched questionsResult ->
+            ( Model
+                (case questionsResult of
+                    Ok questions ->
+                        Loaded (Game (extractFirst questions) (List.drop 1 questions))
+
+                    Err error ->
+                        OnError
+                )
+            , Cmd.none
+            )
+
+
+getQuestionsRequest : Cmd Msg
+getQuestionsRequest =
+    Http.get { url = getQuestionsUrl, expect = expectJson OnQuestionsFetched getQuestionsDecoder }
+
+
+getQuestionsUrl : String
+getQuestionsUrl =
+    "https://opentdb.com/api.php?amount=5&type=multiple"
+
+
+getQuestionsDecoder : Decode.Decoder (List Question)
+getQuestionsDecoder =
+    Decode.field "results" questionsListDecoder
+
+
+questionsListDecoder : Decode.Decoder (List Question)
+questionsListDecoder =
+    Decode.list questionDecoder
+
+
+questionDecoder : Decode.Decoder Question
+questionDecoder =
+    map3 Question
+        (field "question" string)
+        (field "correct_answer" string)
+        (map2
+            (\correct_answer incorrect_answers -> correct_answer :: incorrect_answers)
+            (field "correct_answer" string)
+            (field "incorrect_answers" (list string))
+        )
 
 
 view : Model -> Html.Html Msg
 view model =
-    div [] [ text "Content of the page" ]
+    div []
+        [ case model.game of
+            Loading ->
+                text "Loading the questions..."
+
+            Loaded game ->
+                div [ class "question" ] [ text game.currentQuestion.question ]
+
+            OnError ->
+                text "An unknown error occurred while loading the questions."
+        ]
 
 
 gamePage : Question -> Html msg
