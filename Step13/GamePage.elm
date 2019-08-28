@@ -4,7 +4,7 @@ import Browser
 import Html exposing (Html, a, div, h2, li, text, ul)
 import Html.Attributes exposing (class)
 import Http exposing (Error, expectJson)
-import Json.Decode as Decode exposing (field, map3, list)
+import Json.Decode as Decode exposing (field, list, map2, map3, string)
 import Utils.Utils exposing (styles, testsIframe)
 
 
@@ -62,11 +62,30 @@ init =
     ( Model Loading, getQuestionsRequest )
 
 
+extractFirst : List Question -> Question
+extractFirst questionsList =
+    case List.head questionsList of
+        Just question ->
+            question
+
+        Nothing ->
+            Question "" "" []
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update message model =
     case message of
-        OnQuestionsFetched _ ->
-            ( model, Cmd.none )
+        OnQuestionsFetched questionsResult ->
+            ( Model
+                (case questionsResult of
+                    Ok questions ->
+                        Loaded (Game (extractFirst questions) (List.drop 1 questions))
+
+                    Err error ->
+                        OnError
+                )
+            , Cmd.none
+            )
 
 
 getQuestionsRequest : Cmd Msg
@@ -81,32 +100,39 @@ getQuestionsUrl =
 
 getQuestionsDecoder : Decode.Decoder (List Question)
 getQuestionsDecoder =
-    Decode.field "results" getQuestionsListDecoder
+    Decode.field "results" questionsListDecoder
 
 
-getQuestionsListDecoder : Decode.Decoder (List Question)
-getQuestionsListDecoder =
-    Decode.List getQuestionsDecoder
+questionsListDecoder : Decode.Decoder (List Question)
+questionsListDecoder =
+    Decode.list questionDecoder
 
 
-getQuestionsDecoder : Decode.Decoder Question
-getQuestionsDecoder =
+questionDecoder : Decode.Decoder Question
+questionDecoder =
     map3 Question
-        (field "question" String)
-        (field "correct_answer" String)
-        (field  )
---        List.append [(field "correct_answer" String)] (field "incorrect_answers" (Decode.list String))
+        (field "question" string)
+        (field "correct_answer" string)
+        (map2
+            (\correct_answer incorrect_answers -> correct_answer :: incorrect_answers)
+            (field "correct_answer" string)
+            (field "incorrect_answers" (list string))
+        )
 
-test : Decode.Decoder (List String) -> Decode.Decoder String -> Decode.Decoder(List String)
-test list string =
-     let decodedList case list of
-         Ok value -> value
-         Err value -> value
-     in
 
 view : Model -> Html.Html Msg
 view model =
-    div [] [ text "Content of the page" ]
+    div []
+        [ case model.game of
+            Loading ->
+                text "Loading the questions..."
+
+            Loaded game ->
+                div [ class "question" ] [ text game.currentQuestion.question ]
+
+            OnError ->
+                text "An unknown error occurred while loading the questions."
+        ]
 
 
 gamePage : Question -> Html msg
